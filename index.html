@@ -261,7 +261,7 @@
                             <h4 class="mb-3">การรับรองโดยครู</h4>
                             <div class="row g-3 align-items-center">
                                 <div class="col-md-3" v-if="!teacherFound">
-                                    <label for="teacherId" class="form-label">รหัสครู (4 หลัก)</label>
+                                    <label for="teacherId" class="form-label">รหัสครูผู้สอน</label>
                                     <input type="password" class="form-control" id="teacherId" v-model="teacherId" @input="fetchTeacher" maxlength="4" placeholder="กรอกรหัส">
                                 </div>
                                 <div class="col-md-9" v-if="teacherFound">
