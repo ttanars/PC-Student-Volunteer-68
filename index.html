@@ -273,7 +273,7 @@
                                  </div>
                                  <div class="col-md-3">
                                      <label for="activityLocation" class="form-label">สถานที่</label>
-                                     <input type="text" class="form-control" id="activityLocation" v-model="formData.activityLocation" required>
+                                     <input type="text" class="form-control" id="activityLocation" placeholder="ระบุสถานที่..." v-model="formData.activityLocation" required>
                                  </div>
                             </div>
 
@@ -628,7 +628,7 @@
                 activityPhotoPreview: null,
                 formData: {
                     academicYear: '2568', semester: '1', activityDate: new Date().toISOString().slice(0, 10),
-                    activityName: '', activityHours: 1, activityLocation: 'โรงเรียนปากช่อง',
+                    activityName: '', activityHours: 1, activityLocation: '',
                     notes: '', teacher: {}, signature: null, activityPhoto: null,
                 },
                 allTeachers: [],
