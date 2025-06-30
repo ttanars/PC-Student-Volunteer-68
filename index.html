@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PC|Student Volunteer'68 v1</title> <link rel="shortcut icon" type="image/png" href="https://img2.pic.in.th/pic/Pakchong_School-removebg-preview.png">
 
+    <!-- Standard Libraries -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
@@ -119,6 +120,32 @@
             background-color: #e9ecef;
             border-radius: 0.75rem;
         }
+        /* START: Custom Datalist Styles */
+        .autocomplete-dropdown {
+            position: absolute;
+            background-color: white;
+            border: 1px solid #ced4da;
+            border-top: none;
+            border-radius: 0 0 0.5rem 0.5rem;
+            width: 100%; 
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 1050; /* Make sure it's above other elements */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .autocomplete-item {
+            display: block;
+            padding: 0.75rem 1.25rem;
+            color: #212529;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out;
+        }
+        .autocomplete-item:hover {
+            background-color: #e9ecef;
+            color: #000;
+        }
+        /* END: Custom Datalist Styles */
     </style>
 </head>
 <body>
@@ -127,7 +154,7 @@
     <div class="card shadow-sm">
         <div class="card-body">
             <div class="text-center">
-                <img src="https://lh4.googleusercontent.com/d/1lu0RfO1EVkl11NJOfnmCSC1tWYTQAG0I" alt="Form Banner" class="app-banner img-fluid mb-3" onerror="this.onerror=null;this.src='https://placehold.co/1200x250/007bff/ffffff?text=Banner';">
+                <img src="https://lh4.googleusercontent.com/d/1CfBVMGwseJ5DYVHzJFV-r9RiEHHr2vU-" alt="Form Banner" class="app-banner img-fluid mb-3" onerror="this.onerror=null;this.src='https://placehold.co/1200x250/007bff/ffffff?text=Banner';">
             </div>
             <div class="text-center mb-4">
                 <marquee behavior="scroll" direction="left" style="color:#000000; font-size: 15px;" onmouseover="this.stop();" onmouseout="this.start();"><h5><img src="https://lh5.googleusercontent.com/d/1cD2nVKNscJg1DJPnkaakah7Nz4ez_BZS" height="12" width="25"> ยินดีต้อนรับเข้าสู่ระบบจิตอาสาออนไลน์ โรงเรียนปากช่อง :: ออกแบบและพัฒนาโดย KT | Tanasarn Sirak <img src="https://lh5.googleusercontent.com/d/1cD2nVKNscJg1DJPnkaakah7Nz4ez_BZS" height="12" width="25"></h5></marquee>
@@ -225,12 +252,20 @@
                             </div>
 
                             <div class="row g-3 mb-4">
-                                 <div class="col-md-6">
+                                 <div class="col-md-6 position-relative" ref="activityDropdownContainer">
                                     <label for="activityName" class="form-label">ชื่อกิจกรรม</label>
-                                    <input type="text" class="form-control" id="activityName" list="activityDatalist" v-model="formData.activityName" placeholder="เลือกหรือพิมพ์เพื่อเพิ่มกิจกรรม..." @focus="hideUnselected = true" required>
-                                    <datalist id="activityDatalist">
-                                        <option v-for="act in activityList" :value="act"></option>
-                                    </datalist>
+                                    <input type="text" class="form-control" id="activityName" 
+                                           v-model="formData.activityName" 
+                                           @input="isActivityDropdownVisible = true" 
+                                           @focus="isActivityDropdownVisible = true"
+                                           placeholder="เลือกหรือพิมพ์เพื่อเพิ่มกิจกรรม..." 
+                                           autocomplete="off"
+                                           required>
+                                    <div v-if="isActivityDropdownVisible && filteredActivities.length > 0" class="autocomplete-dropdown">
+                                        <a v-for="act in filteredActivities" :key="act" @click="selectActivity(act)" class="autocomplete-item">
+                                            {{ act }}
+                                        </a>
+                                    </div>
                                  </div>
                                  <div class="col-md-3">
                                     <label for="activityHours" class="form-label">จำนวนชั่วโมง</label>
@@ -261,9 +296,10 @@
                             <h4 class="mb-3">การรับรองโดยครู</h4>
                             <div class="row g-3 align-items-center">
                                 <div class="col-md-3" v-if="!teacherFound">
-                                    <label for="teacherId" class="form-label">รหัสครูผู้สอน</label>
-                                    <input type="password" class="form-control" id="teacherId" v-model="teacherId" @input="fetchTeacher" maxlength="4" placeholder="กรอกรหัส">
+                                    <label for="teacherIdInput" class="form-label">รหัสครูผู้สอน</label>
+                                    <input type="password" class="form-control" id="teacherIdInput" v-model="teacherId" @input="findTeacherLocally" maxlength="4" placeholder="กรอกรหัส 4 หลัก">
                                 </div>
+                                
                                 <div class="col-md-9" v-if="teacherFound">
                                     <div class="d-flex align-items-center bg-light p-3 rounded teacher-info">
                                         <img :src="formData.teacher.pictureUrl" alt="รูปครู" @error="imageError">
@@ -471,11 +507,10 @@
                                     </select>
                                 </div>
                                 <div class="col-md-3">
-                                    <label for="historyTeacherFilterInput" class="form-label fw-bold">ครูผู้รับรอง:</label>
-                                    <input class="form-control" list="teacherDatalist" id="historyTeacherFilterInput" placeholder="พิมพ์หรือเลือกครู..." v-model="historyTeacherFilter">
-                                    <datalist id="teacherDatalist">
-                                        <option v-for="t in uniqueHistoryTeachers" :key="t" :value="t"></option>
-                                    </datalist>
+                                    <label for="historyTeacherFilter" class="form-label fw-bold">ครูผู้รับรอง:</label>
+									<select id="historyTeacherFilter" class="form-control selectpicker" data-live-search="true" title="เลือกครู..." v-model="historyTeacherFilter">
+										<option v-for="t in uniqueHistoryTeachers" :key="t" :value="t === 'ทั้งหมด' ? '' : t">{{ t }}</option>
+									</select>
                                 </div>
                                 <div class="col-md-4">
                                     <label for="historyDateFilter" class="form-label fw-bold">วันที่ทำกิจกรรม (จาก - ถึง):</label>
@@ -572,7 +607,6 @@
         Swal.fire({
             text: `รูปกิจกรรม: ${activityName}`,
             imageUrl: imageUrl,
-            //width: '40%',
             imageAlt: 'รูปกิจกรรม ' + activityName,
         });
     }
@@ -585,60 +619,39 @@
                 webAppUrl: 'https://script.google.com/macros/s/AKfycbwy9vI0ZwCtECeDmmbo1fJjkJTAx4Rxlgob0KCD616hWfY4LL1x5BuXBRN2wDXTbbUr/exec',
                 clock: '',
                 activeTab: 'form',
-                // Form Data
-                classes: ['ม.1/1.', 'ม.1/2', 'ม.1/3', 'ม.1/4', 'ม.1/5', 'ม.1/6', 'ม.1/7', 'ม.1/8', 'ม.1/9', 'ม.1/10', 'ม.1/11', 'ม.1/12', 'ม.1/13', 'ม.1/14', 'ม.2/1.', 'ม.2/2', 'ม.2/3', 'ม.2/4', 'ม.2/5', 'ม.2/6', 'ม.2/7', 'ม.2/8', 'ม.2/9', 'ม.2/10', 'ม.2/11', 'ม.2/12', 'м.2/13', 'ม.3/1.', 'м.3/2', 'м.3/3', 'м.3/4', 'м.3/5', 'м.3/6', 'м.3/7', 'м.3/8', 'м.3/9', 'м.3/10', 'м.3/11', 'м.3/12', 'м.3/13', 'м.3/14', 'м.4/1.', 'м.4/2', 'м.4/3', 'м.4/4', 'м.4/5', 'м.4/6', 'м.4/7', 'м.4/8', 'м.4/9', 'м.4/10', 'м.4/11', 'м.4/12', 'м.4/13', 'м.4/14', 'м.5/1.', 'м.5/2', 'м.5/3', 'м.5/4', 'м.5/5', 'м.5/6', 'м.5/7', 'м.5/8', 'м.5/9', 'м.5/10', 'м.5/11', 'м.5/12', 'м.5/13', 'м.5/14', 'м.6/1.', 'м.6/2', 'м.6/3', 'м.6/4', 'м.6/5', 'м.6/6', 'м.6/7', 'м.6/8', 'м.6/9', 'м.6/10', 'м.6/11', 'м.6/12', 'м.6/13', 'м.6/14'],
+                classes: [],
                 activityList: [],
+                isActivityDropdownVisible: false, // For custom dropdown
                 selectedClasses: [],
                 allFetchedStudents: [],
                 hideUnselected: false,
                 activityPhotoPreview: null,
                 formData: {
                     academicYear: '2568', semester: '1', activityDate: new Date().toISOString().slice(0, 10),
-                    activityName: '', activityHours: 1, activityLocation: 'โรงเรียนปากช่อง', notes: '',
-                    teacher: {}, signature: null, activityPhoto: null,
+                    activityName: '', activityHours: 1, activityLocation: 'โรงเรียนปากช่อง',
+                    notes: '', teacher: {}, signature: null, activityPhoto: null,
                 },
+                allTeachers: [],
                 teacherId: '',
                 teacherFound: false,
                 signaturePad: null,
                 signatureInvalid: false,
                 isSubmitting: false,
-                 // Search Tab Data
                 search: {
-                    studentId: '',
-                    isSearching: false,
-                    dataFound: false,
-                    noDataMessage: '',
-                    summary: {},
-                    activities: [],
-                    historyTable: null,
+                    studentId: '', isSearching: false, dataFound: false, noDataMessage: '',
+                    summary: {}, activities: [], historyTable: null,
                 },
-                // Stats Data
-                statsData: [],
-                statsClassFilter: '',
-                statsResultFilter: '',
-                statsLoaded: false,
-                dataTable: null,
-                // History Data
-                historyData: [],
-                historyLoaded: false,
-                historyDataTable: null,
-                historyClassFilter: '',
-                historyTeacherFilter: '',
-                historyDateRange: [],
+                statsData: [], statsClassFilter: '', statsResultFilter: '', statsLoaded: false, dataTable: null,
+                historyData: [], historyLoaded: false, historyDataTable: null, historyClassFilter: '',
+                historyTeacherFilter: '', historyDateRange: [],
             };
         },
         computed: {
-            selectedStudentCount() {
-                return this.allFetchedStudents.filter(s => s.selected).length;
-            },
-            filteredStudents() {
-                return this.hideUnselected ? this.allFetchedStudents.filter(s => s.selected) : this.allFetchedStudents;
-            },
+            selectedStudentCount() { return this.allFetchedStudents.filter(s => s.selected).length; },
+            filteredStudents() { return this.hideUnselected ? this.allFetchedStudents.filter(s => s.selected) : this.allFetchedStudents; },
             statsSummary() {
                 let dataSource = this.statsData;
-                if (this.statsClassFilter) {
-                    dataSource = this.statsData.filter(student => student.class === this.statsClassFilter);
-                }
+                if (this.statsClassFilter) { dataSource = this.statsData.filter(student => student.class === this.statsClassFilter); }
                 const total = dataSource.length;
                 const passed = dataSource.filter(s => s.result === '✅ผ่าน').length;
                 const notPassed = dataSource.filter(s => s.result === '❌ไม่ผ่าน').length;
@@ -656,112 +669,105 @@
                 });
                 return Array.from(classSet).sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
             },
-            uniqueHistoryTeachers() {
-                const teacherSet = new Set(this.historyData.map(row => row['ครูผู้รับรอง']).filter(Boolean));
-                return Array.from(teacherSet).sort();
+		uniqueHistoryTeachers() {
+			const teacherSet = new Set(this.historyData.map(row => row['ครูผู้รับรอง']).filter(Boolean));
+			return [...Array.from(teacherSet).sort()];
+		},
+            filteredActivities() {
+                if (!this.formData.activityName) {
+                    return this.activityList;
+                }
+                const query = this.formData.activityName.toLowerCase();
+                return this.activityList.filter(act => act.toLowerCase().includes(query));
             }
         },
         watch: {
-            teacherFound(newVal) {
-                if (newVal) {
-                    this.$nextTick(() => this.initSignaturePad());
-                }
-            },
-            statsClassFilter() {
-                if(this.dataTable) this.dataTable.draw();
-            },
-            statsResultFilter() {
-                if(this.dataTable) this.dataTable.draw();
-            },
-            historyClassFilter() {
-                if(this.historyDataTable) this.historyDataTable.draw();
-            },
-            historyTeacherFilter() {
-                if(this.historyDataTable) this.historyDataTable.draw();
-            }
+            teacherFound(newVal) { if (newVal) { this.$nextTick(() => this.initSignaturePad()); } },
+            statsClassFilter() { if(this.dataTable) this.dataTable.draw(); },
+            statsResultFilter() { if(this.dataTable) this.dataTable.draw(); },
+            historyClassFilter() { if(this.historyDataTable) this.historyDataTable.draw(); },
+            historyTeacherFilter() { if(this.historyDataTable) this.historyDataTable.draw(); }
         },
         methods: {
             updateClock() {
-                 const now = new Date();
+                const now = new Date();
                 const days = ['วันอาทิตย์', 'วันจันทร์', 'วันอังคาร', 'วันพุธ', 'วันพฤหัสบดี', 'วันศุกร์', 'วันเสาร์'];
                 const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-                const dayName = days[now.getDay()];
-                const day = now.getDate();
-                const monthName = months[now.getMonth()];
-                const year = now.getFullYear() + 543;
-                const time = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-                this.clock = `${dayName}ที่ ${day} ${monthName} พ.ศ. ${year} เวลา ${time.replace(/:/g, ' : ')} น.`;
+                this.clock = `${days[now.getDay()]}ที่ ${now.getDate()} ${months[now.getMonth()]} พ.ศ. ${now.getFullYear() + 543} เวลา ${now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(/:/g, ' : ')} น.`;
             },
-            imageError(event) {
-                event.target.src = 'https://placehold.co/80x80/EFEFEF/AAAAAA?text=N/A';
-            },
-            async fetchStudents() {
-                if (this.selectedClasses.length === 0) {
-                    this.allFetchedStudents = [];
-                    return;
-                }
-                $.LoadingOverlay("show");
-                const requests = this.selectedClasses.map(c => fetch(`${this.webAppUrl}?action=getStudents&class=${encodeURIComponent(c)}`).then(res => res.json()));
+            imageError(event) { event.target.src = 'https://placehold.co/80x80/EFEFEF/AAAAAA?text=N/A'; },
+            async fetchAllTeachers() {
                 try {
-                    const results = await Promise.all(requests);
-                    let allStudents = [];
-                    results.forEach(result => {
-                       if (result.success) allStudents = [...allStudents, ...result.data];
-                    });
-                    const uniqueStudents = Array.from(new Map(allStudents.map(item => [item['id'], item])).values());
-                    this.allFetchedStudents = uniqueStudents.map(s => ({ ...s, selected: true }));
-                } catch (error) {
-                    Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลนักเรียนได้', 'error');
-                } finally {
-                    $.LoadingOverlay("hide");
-                }
+                    const res = await fetch(`${this.webAppUrl}?action=getAllTeachers`);
+                    const result = await res.json();
+                    if (result.success) { this.allTeachers = result.data; }
+                    else { Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลครูได้', 'error'); throw new Error(result.message); }
+                } catch (error) { console.error('Error fetching all teachers:', error); throw error; }
             },
-            async fetchTeacher() {
+            findTeacherLocally() {
                 this.teacherFound = false;
-                this.formData.teacher = {};
-                if (this.teacherId.length < 4) return;
-                $.LoadingOverlay("show");
+                if (this.teacherId.length === 4) {
+                    const foundTeacher = this.allTeachers.find(t => t.id.toString() === this.teacherId);
+                    if (foundTeacher) {
+                        this.formData.teacher = foundTeacher;
+                        this.teacherFound = true;
+                        Swal.fire({ icon: 'success', title: 'พบข้อมูลครู', text: `ชื่อ: ${foundTeacher.name}`, timer: 1500, showConfirmButton: false });
+                    } else { Swal.fire('ไม่พบข้อมูล', 'ไม่พบข้อมูลครูสำหรับรหัสนี้', 'warning'); }
+                }
+            },
+            changeTeacher() { this.teacherFound = false; this.teacherId = ''; this.formData.teacher = {}; },
+            async fetchClasses() {
                 try {
-                    const res = await fetch(`${this.webAppUrl}?action=getTeacher&id=${this.teacherId}`);
+                    const res = await fetch(`${this.webAppUrl}?action=getClasses`);
                     const result = await res.json();
                     if (result.success) {
-                        this.formData.teacher = result.data;
-                        this.teacherFound = true;
-                        Swal.fire({ icon: 'success', title: 'พบข้อมูลครู', text: `ชื่อ: ${result.data.name}`, timer: 1500, showConfirmButton: false });
-                    } else {
-                         Swal.fire('ไม่พบข้อมูล', 'ไม่พบข้อมูลครูสำหรับรหัสนี้', 'warning');
-                    }
+                        this.classes = result.data;
+                        this.$nextTick(() => { if ($('.selectpicker').length) { $('.selectpicker').selectpicker('refresh'); } });
+                    } else { Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลห้องเรียนได้: ' + result.message, 'error'); throw new Error(result.message); }
                 } catch (error) {
-                    Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
-                } finally {
-                    $.LoadingOverlay("hide");
+                    console.error('Error fetching classes:', error);
+                    if (!error.message.includes('ไม่สามารถโหลดข้อมูลห้องเรียนได้')) { Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อเพื่อโหลดข้อมูลห้องเรียนได้', 'error'); }
+                    throw error;
                 }
             },
-            changeTeacher() {
-                this.teacherFound = false;
-                this.teacherId = '';
-                this.formData.teacher = {};
+            async fetchStudents() {
+                if (this.selectedClasses.length === 0) { this.allFetchedStudents = []; return; }
+                $.LoadingOverlay("show");
+                try {
+                    const results = await Promise.all(this.selectedClasses.map(c => fetch(`${this.webAppUrl}?action=getStudents&class=${encodeURIComponent(c)}`).then(res => res.json())));
+                    let allStudents = [];
+                    results.forEach(result => { if (result.success) allStudents = [...allStudents, ...result.data]; });
+                    const uniqueStudents = Array.from(new Map(allStudents.map(item => [item['id'], item])).values());
+                    this.allFetchedStudents = uniqueStudents.map(s => ({ ...s, selected: true }));
+                } catch (error) { Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลนักเรียนได้', 'error'); }
+                finally { $.LoadingOverlay("hide"); }
             },
             resetClassSelection() {
                 this.selectedClasses = [];
                 this.allFetchedStudents = [];
-                if ($('.selectpicker').length) {
-                    $('.selectpicker').selectpicker('val', []);
-                }
+                if ($('.selectpicker').length) { $('.selectpicker').selectpicker('val', []); }
             },
             async fetchActivities() {
                 try {
                     const res = await fetch(`${this.webAppUrl}?action=getActivities`);
                     const result = await res.json();
-                    if (result.success) this.activityList = result.data;
-                } catch (error) { console.error('Error fetching activities:', error); }
+                    if (result.success) {
+                        this.activityList = result.data;
+                    } else {
+                        throw new Error(result.message);
+                    }
+                } catch (error) { 
+                    console.error('Error fetching activities:', error);
+                    throw error;
+                }
+            },
+            selectActivity(activity) {
+                this.formData.activityName = activity;
+                this.isActivityDropdownVisible = false;
             },
             handlePhotoUpload(event) {
                 const file = event.target.files[0];
-                if (file) {
-                    this.formData.activityPhoto = file;
-                    this.activityPhotoPreview = URL.createObjectURL(file);
-                }
+                if (file) { this.formData.activityPhoto = file; this.activityPhotoPreview = URL.createObjectURL(file); }
             },
             initSignaturePad() {
                 const canvas = document.getElementById('signature-pad');
@@ -772,14 +778,10 @@
                 canvas.getContext("2d").scale(ratio, ratio);
                 this.signaturePad.clear();
             },
-            clearSignature() {
-                if(this.signaturePad) this.signaturePad.clear();
-            },
+            clearSignature() { if(this.signaturePad) this.signaturePad.clear(); },
             selectAllStudents() { this.allFetchedStudents.forEach(s => s.selected = true); },
             deselectAllStudents() { this.allFetchedStudents.forEach(s => s.selected = false); },
-            showStudentImage(student) {
-                showStudentImageAlert(student.name, student.class, student.number, student.pictureUrl);
-            },
+            showStudentImage(student) { showStudentImageAlert(student.name, student.class, student.number, student.pictureUrl); },
             fileToBase64(file) {
                 return new Promise((resolve, reject) => {
                     const reader = new FileReader();
@@ -791,13 +793,11 @@
             resetForm() {
                 const form = document.querySelector('.needs-validation');
                 if(form) form.classList.remove('was-validated');
-
                 this.formData.academicYear = '2568';
                 this.formData.semester = '1';
                 const today = new Date().toISOString().slice(0, 10);
                 this.formData.activityDate = today;
                 flatpickr("#activityDatePicker").setDate(today, true);
-
                 this.formData.activityName = '';
                 this.formData.activityHours = 1;
                 this.formData.activityLocation = 'โรงเรียนปากช่อง';
@@ -808,66 +808,31 @@
                 this.activityPhotoPreview = null;
                 const photoInput = document.getElementById('activityPhoto');
                 if(photoInput) photoInput.value = '';
-
                 this.resetClassSelection();
                 this.hideUnselected = false;
-
                 this.teacherId = '';
                 this.teacherFound = false;
                 this.signatureInvalid = false;
-                if (this.signaturePad) {
-                    this.clearSignature();
-                }
+                if (this.signaturePad) { this.clearSignature(); }
             },
             async submitForm(event) {
                 const form = event.target;
                 const selectedStudents = this.allFetchedStudents.filter(s => s.selected);
                 this.signatureInvalid = (this.signaturePad && this.signaturePad.isEmpty());
-
                 if (!form.checkValidity() || selectedStudents.length === 0 || !this.teacherFound || this.signatureInvalid) {
                     form.classList.add('was-validated');
                     Swal.fire('ข้อมูลไม่ครบถ้วน', 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน, เลือกนักเรียน, และลงลายมือชื่อผู้รับรอง', 'error');
                     return;
                 }
-
                 const formattedDate = document.getElementById('activityDatePicker')._flatpickr.altInput.value;
                 const studentListHtml = selectedStudents.map(s => `<li>${s.name}</li>`).join('');
-
                 const confirmationResult = await Swal.fire({
                     title: 'ยืนยันการบันทึกข้อมูล',
-                    html: `
-                        <div class="table-responsive text-start" style="max-width: 100%; overflow-x: auto;">
-                            <table class="table table-bordered">
-                                <tbody>
-                                    <tr>
-                                        <th style="width: 30%; white-space: nowrap;">วันที่ทำกิจกรรม</th>
-                                        <td>${formattedDate}</td>
-                                    </tr>
-                                    <tr>
-                                        <th style="white-space: nowrap;">ชื่อกิจกรรม</th>
-                                        <td>${this.formData.activityName}</td>
-                                    </tr>
-                                    <tr>
-                                        <th style="white-space: nowrap;">จำนวนชั่วโมง</th>
-                                        <td>${this.formData.activityHours}</td>
-                                    </tr>
-                                    <tr>
-                                        <th style="white-space: nowrap;">นักเรียนที่เข้าร่วม (${selectedStudents.length} คน)</th>
-                                        <td><ul class="list-unstyled mb-0" style="max-height: 150px; overflow-y: auto;">${studentListHtml}</ul></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    `,
-                    icon: 'info',
-                    width: '50rem',
-                    showCancelButton: true,
-                    confirmButtonColor: '#28a745',
-                    cancelButtonColor: '#dc3545',
-                    confirmButtonText: '<i class="fas fa-check-circle"></i> ยืนยัน',
-                    cancelButtonText: '<i class="fas fa-times-circle"></i> ยกเลิก'
+                    html: `<div class="table-responsive text-start" style="max-width: 100%; overflow-x: auto;"><table class="table table-bordered"><tbody><tr><th style="width: 30%; white-space: nowrap;">วันที่ทำกิจกรรม</th><td>${formattedDate}</td></tr><tr><th style="white-space: nowrap;">ชื่อกิจกรรม</th><td>${this.formData.activityName}</td></tr><tr><th style="white-space: nowrap;">จำนวนชั่วโมง</th><td>${this.formData.activityHours}</td></tr><tr><th style="white-space: nowrap;">นักเรียนที่เข้าร่วม (${selectedStudents.length} คน)</th><td><ul class="list-unstyled mb-0" style="max-height: 150px; overflow-y: auto;">${studentListHtml}</ul></td></tr></tbody></table></div>`,
+                    icon: 'info', width: '50rem', showCancelButton: true,
+                    confirmButtonColor: '#28a745', cancelButtonColor: '#dc3545',
+                    confirmButtonText: '<i class="fas fa-check-circle"></i> ยืนยัน', cancelButtonText: '<i class="fas fa-times-circle"></i> ยกเลิก'
                 });
-
                 if (confirmationResult.isConfirmed) {
                     this.isSubmitting = true;
                     $.LoadingOverlay("show");
@@ -886,54 +851,21 @@
                         postData.append('photoFileName', `photo_${Date.now()}.jpg`);
                         postData.append('signatureBase64', signatureBase64);
                         postData.append('signatureFileName', `sig_${Date.now()}.png`);
-
                         const response = await fetch(this.webAppUrl, { method: 'POST', body: postData });
                         const result = await response.json();
-                        
                         $.LoadingOverlay("hide");
                         this.isSubmitting = false;
-
                         if (result.success) {
                              await Swal.fire({
-                                title: 'บันทึกสำเร็จ!',
-                                icon: 'success',
-                                html: `
-                                    <p class="mb-3">ข้อมูลกิจกรรมของท่านถูกบันทึกเรียบร้อยแล้ว</p>
-                                    <div class="table-responsive text-start" style="max-width: 100%; overflow-x: auto;">
-                                        <table class="table table-bordered">
-                                            <tbody>
-                                                <tr>
-                                                    <th style="width: 30%; white-space: nowrap;">วันที่ทำกิจกรรม</th>
-                                                    <td>${formattedDate}</td>
-                                                </tr>
-                                                <tr>
-                                                    <th style="white-space: nowrap;">ชื่อกิจกรรม</th>
-                                                    <td>${this.formData.activityName}</td>
-                                                </tr>
-                                                <tr>
-                                                    <th style="white-space: nowrap;">จำนวนชั่วโมง</th>
-                                                    <td>${this.formData.activityHours}</td>
-                                                </tr>
-                                                <tr>
-                                                    <th style="white-space: nowrap;">นักเรียนที่เข้าร่วม (${selectedStudents.length} คน)</th>
-                                                    <td><ul class="list-unstyled mb-0" style="max-height: 150px; overflow-y: auto;">${studentListHtml}</ul></td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                `,
-                                confirmButtonText: 'ตกลง',
-                                allowOutsideClick: false
+                                title: 'บันทึกสำเร็จ!', icon: 'success',
+                                html: `<p class="mb-3">ข้อมูลกิจกรรมของท่านถูกบันทึกเรียบร้อยแล้ว</p><div class="table-responsive text-start" style="max-width: 100%; overflow-x: auto;"><table class="table table-bordered"><tbody><tr><th style="width: 30%; white-space: nowrap;">วันที่ทำกิจกรรม</th><td>${formattedDate}</td></tr><tr><th style="white-space: nowrap;">ชื่อกิจกรรม</th><td>${this.formData.activityName}</td></tr><tr><th style="white-space: nowrap;">จำนวนชั่วโมง</th><td>${this.formData.activityHours}</td></tr><tr><th style="white-space: nowrap;">นักเรียนที่เข้าร่วม (${selectedStudents.length} คน)</th><td><ul class="list-unstyled mb-0" style="max-height: 150px; overflow-y: auto;">${studentListHtml}</ul></td></tr></tbody></table></div>`,
+                                confirmButtonText: 'ตกลง', allowOutsideClick: false
                             });
-                            
                             this.resetForm();
                             this.activeTab = 'history';
                             this.historyLoaded = false;
                             this.loadHistory();
-
-                        } else {
-                            throw new Error(result.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
-                        }
+                        } else { throw new Error(result.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล'); }
                     } catch (error) {
                         $.LoadingOverlay("hide");
                         this.isSubmitting = false;
@@ -941,110 +873,49 @@
                     }
                 }
             },
-             getEvalBadgeClass(result) {
+            getEvalBadgeClass(result) {
                 if (result === '✅ผ่าน') return 'bg-success';
                 if (result === '❌ไม่ผ่าน') return 'bg-danger';
                 return 'bg-warning text-dark';
             },
-
             async searchStudentHistory() {
                 if (!this.search.studentId || this.search.studentId.length < 5) {
                     Swal.fire('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกรหัสนักเรียน 5 หลักให้ถูกต้อง', 'warning');
                     return;
                 }
-
                 this.search.isSearching = true;
                 this.search.dataFound = false;
                 this.search.noDataMessage = '';
-                if (this.search.historyTable) {
-                    this.search.historyTable.destroy();
-                    $('#searchHistoryTable tbody').empty();
-                    this.search.historyTable = null;
-                }
-                
+                if (this.search.historyTable) { this.search.historyTable.destroy(); $('#searchHistoryTable tbody').empty(); this.search.historyTable = null; }
                 $.LoadingOverlay("show");
-
                 try {
                     const res = await fetch(`${this.webAppUrl}?action=getStudentHistory&studentId=${this.search.studentId}`);
                     const result = await res.json();
-
                     if (result.success) {
                         this.search.summary = result.data.summary;
                         this.search.activities = result.data.activities;
                         this.search.dataFound = true;
-                        
-                        this.$nextTick(() => {
-                            this.initSearchHistoryTable();
-                        });
-
-                    } else {
-                        this.search.noDataMessage = result.message || 'ไม่พบข้อมูลนักเรียนรหัสนี้';
-                    }
+                        this.$nextTick(() => { this.initSearchHistoryTable(); });
+                    } else { this.search.noDataMessage = result.message || 'ไม่พบข้อมูลนักเรียนรหัสนี้'; }
                 } catch (error) {
                     this.search.noDataMessage = 'เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์';
                     Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถดึงข้อมูลได้', 'error');
-                } finally {
-                    this.search.isSearching = false;
-                    $.LoadingOverlay("hide");
-                }
+                } finally { this.search.isSearching = false; $.LoadingOverlay("hide"); }
             },
             initSearchHistoryTable() {
-                if ($.fn.DataTable.isDataTable('#searchHistoryTable')) {
-                   $('#searchHistoryTable').DataTable().destroy();
-                }
-                 this.search.historyTable = new DataTable('#searchHistoryTable', {
-                    responsive: true,
-                    data: this.search.activities,
-                    dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
-                         "<'row'<'col-sm-12'tr>>" +
-                         "<'row'<'col-sm-12 col-md'i><'col-sm-12 col-md-auto'p>>",
+                if ($.fn.DataTable.isDataTable('#searchHistoryTable')) { $('#searchHistoryTable').DataTable().destroy(); }
+                this.search.historyTable = new DataTable('#searchHistoryTable', {
+                    responsive: true, data: this.search.activities,
+                    dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>><'row'<'col-sm-12'tr>><'row'<'col-sm-12 col-md'i><'col-sm-12 col-md-auto'p>>",
                     columns: [
-                        { 
-                            data: 'วันที่ทำกิจกรรม', 
-                            className: 'text-center align-middle',
-                            render: function(data, type, row) {
-                                if (type === 'display' && typeof data === 'string' && data.includes('-')) {
-                                    try {
-                                        const thaiMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-                                        const datePart = data.split('T')[0];
-                                        const parts = datePart.split('-');
-                                        
-                                        if (parts.length === 3) {
-                                            const year = parts[0]; 
-                                            const monthIndex = parseInt(parts[1], 10) - 1;
-                                            const day = parseInt(parts[2], 10);
-
-                                            if (!isNaN(day) && !isNaN(monthIndex) && monthIndex >= 0 && monthIndex < 12) {
-                                                const month = thaiMonths[monthIndex];
-                                                return `${day} ${month}.${year}`;
-                                            }
-                                        }
-                                    } catch (e) {
-                                       return data;
-                                    }
-                                } else if (type === 'display' && data) {
-                                    return String(data).replace(/ (\d{4})$/, '.$1');
-                                }
-                                return data;
-                            }
-                        },
-                        { 
-                            data: 'ลิงก์รูปกิจกรรม', 
-                            orderable: false, 
-                            className: 'text-center align-middle',
-                            render: (data, type, row) => data ? `<img src="${data}" class="history-activity-image" alt="รูปกิจกรรม" onclick="showActivityImageAlert('${String(row['ชื่อกิจกรรม']).replace(/'/g, "\\'")}', '${data}')" onerror="this.onerror=null;this.src='https://placehold.co/80x80/EFEFEF/AAAAAA?text=N/A';">` : ''
-                        },
-                        {
-                            data: null, 
-                            className: 'text-center align-middle',
-                            render: (data, type, row) => `${row['ภาคเรียน']}/${row['ปีการศึกษา']}`
-                        },
+                        { data: 'วันที่ทำกิจกรรม', className: 'text-center align-middle', render: function(data, type, row) { if (type === 'display' && data) { return String(data).replace(/ (\d{4})$/, '.$1'); } return data; } },
+                        { data: 'ลิงก์รูปกิจกรรม', orderable: false, className: 'text-center align-middle', render: (data, type, row) => data ? `<img src="${data}" class="history-activity-image" alt="รูปกิจกรรม" onclick="showActivityImageAlert('${String(row['ชื่อกิจกรรม']).replace(/'/g, "\\'")}', '${data}')" onerror="this.onerror=null;this.src='https://placehold.co/80x80/EFEFEF/AAAAAA?text=N/A';">` : '' },
+                        { data: null, className: 'text-center align-middle', render: (data, type, row) => `${row['ภาคเรียน']}/${row['ปีการศึกษา']}` },
                         { data: 'ชื่อกิจกรรม', className: 'align-middle' },
                         { data: 'จำนวนชั่วโมง', className: 'text-center align-middle' },
                         { data: 'ครูผู้รับรอง', className: 'align-middle' }
                     ],
-                    language: { url: 'https://cdn.datatables.net/plug-ins/2.0.8/i18n/th.json' },
-                    order: [],
+                    language: { url: 'https://cdn.datatables.net/plug-ins/2.0.8/i18n/th.json' }, order: [],
                 });
             },
             async loadStats() {
@@ -1054,246 +925,156 @@
                 try {
                     const res = await fetch(`${this.webAppUrl}?action=getStudentStats`);
                     const result = await res.json();
-                    if (result.success) {
-                        this.statsData = result.data;
-                        this.statsLoaded = true;
-                        this.$nextTick(() => this.initDataTable());
-                    } else {
-                        throw new Error(result.message);
-                    }
-                } catch (error) {
-                    Swal.fire('เกิดข้อผิดพลาด', `ไม่สามารถโหลดข้อมูลสถิติได้: ${error.message}`, 'error');
-                } finally {
-                    $.LoadingOverlay("hide");
-                }
+                    if (result.success) { this.statsData = result.data; this.statsLoaded = true; this.$nextTick(() => this.initDataTable()); }
+                    else { throw new Error(result.message); }
+                } catch (error) { Swal.fire('เกิดข้อผิดพลาด', `ไม่สามารถโหลดข้อมูลสถิติได้: ${error.message}`, 'error'); }
+                finally { $.LoadingOverlay("hide"); }
             },
-            refreshStats() {
-                this.statsLoaded = false;
-                this.loadStats();
-            },
-            resetStatsFilters() {
-                this.statsClassFilter = '';
-                this.statsResultFilter = '';
-            },
+            refreshStats() { this.statsLoaded = false; this.loadStats(); },
+            resetStatsFilters() { this.statsClassFilter = ''; this.statsResultFilter = ''; },
             initDataTable() {
                 if (this.dataTable) this.dataTable.destroy();
-                
                 $.fn.dataTable.ext.search.push((settings, data, dataIndex) => {
                     if (settings.nTable.id !== 'statsTable') return true;
                     if (!this.statsData[dataIndex]) return false;
-                    const classFilter = this.statsClassFilter;
-                    const resultFilter = this.statsResultFilter;
                     const studentClass = this.statsData[dataIndex].class;
                     const studentResult = this.statsData[dataIndex].result;
-                    if ((!classFilter || studentClass === classFilter) && (!resultFilter || studentResult === resultFilter)) {
-                        return true;
-                    }
+                    if ((!this.statsClassFilter || studentClass === this.statsClassFilter) && (!this.statsResultFilter || studentResult === this.statsResultFilter)) { return true; }
                     return false;
                 });
-
                 this.dataTable = new DataTable('#statsTable', {
-                    responsive: true,
-                    data: this.statsData,
-                    dom: "<'row'<'col-sm-12 col-md-4'l><'col-sm-12 col-md-4'B><'col-sm-12 col-md-4'f>>" +
-                         "<'row'<'col-sm-12'tr>>" +
-                         "<'row'<'col-sm-12 col-md'i><'col-sm-12 col-md-auto'p>>",
-                    buttons: [
-                        { extend: 'copy', text: '<i class="fas fa-copy"></i> คัดลอก', className: 'btn-warning' },
-                        { extend: 'excel', text: '<i class="fas fa-file-excel"></i> Excel', className: 'btn-primary' },
-                        { extend: 'print', text: '<i class="fas fa-print"></i> พิมพ์', className: 'btn-info' }
-                    ],
+                    responsive: true, data: this.statsData,
+                    dom: "<'row'<'col-sm-12 col-md-4'l><'col-sm-12 col-md-4'B><'col-sm-12 col-md-4'f>><'row'<'col-sm-12'tr>><'row'<'col-sm-12 col-md'i><'col-sm-12 col-md-auto'p>>",
+                    buttons: [ { extend: 'copy', text: '<i class="fas fa-copy"></i> คัดลอก', className: 'btn-warning' }, { extend: 'excel', text: '<i class="fas fa-file-excel"></i> Excel', className: 'btn-primary' }, { extend: 'print', text: '<i class="fas fa-print"></i> พิมพ์', className: 'btn-info' } ],
                     columns: [
-                        { 
-                            data: 'pictureUrl', orderable: false, className: 'text-center',
-                            render: (data, type, row) => `<img src="${data}" class="stats-student-avatar" alt="รูป" onclick="showStudentImageAlert('${row.name.replace(/'/g, "\\'")}', '${row.class}', '${row.number}', '${data}')" onerror="this.onerror=null;this.src='https://placehold.co/80x80/EFEFEF/AAAAAA?text=N/A';">`
-                        },
-                        { data: 'name' },
-                        { data: 'class', className: 'text-center' },
-                        { data: 'number', className: 'text-center' },
-                        { data: 'hours_passed', className: 'text-center' },
-                        { data: 'hours_done', className: 'text-center' },
-                        { 
-                            data: 'result', className: 'text-center',
-                            render: (data) => {
-                                let badgeClass = 'bg-secondary';
-                                if (data === '✅ผ่าน') badgeClass = 'bg-success';
-                                else if (data === '❌ไม่ผ่าน') badgeClass = 'bg-danger';
-                                else if (data === 'รอประเมิน') badgeClass = 'bg-warning text-dark';
-                                return `<span class="badge ${badgeClass} p-2">${data}</span>`;
-                            }
-                        }
+                        { data: 'pictureUrl', orderable: false, className: 'text-center', render: (data, type, row) => `<img src="${data}" class="stats-student-avatar" alt="รูป" onclick="showStudentImageAlert('${row.name.replace(/'/g, "\\'")}', '${row.class}', '${row.number}', '${data}')" onerror="this.onerror=null;this.src='https://placehold.co/80x80/EFEFEF/AAAAAA?text=N/A';">` },
+                        { data: 'name' }, { data: 'class', className: 'text-center' }, { data: 'number', className: 'text-center' },
+                        { data: 'hours_passed', className: 'text-center' }, { data: 'hours_done', className: 'text-center' },
+                        { data: 'result', className: 'text-center', render: (data) => { let c = 'bg-secondary'; if (data === '✅ผ่าน') c = 'bg-success'; else if (data === '❌ไม่ผ่าน') c = 'bg-danger'; else if (data === 'รอประเมิน') c = 'bg-warning text-dark'; return `<span class="badge ${c} p-2">${data}</span>`; } }
                     ],
-                    language: { url: 'https://cdn.datatables.net/plug-ins/2.0.8/i18n/th.json' },
-                    order: [[2, 'asc'], [3, 'asc']]
+                    language: { url: 'https://cdn.datatables.net/plug-ins/2.0.8/i18n/th.json' }, order: [[2, 'asc'], [3, 'asc']]
                 });
             },
-            refreshHistory() {
-                this.historyLoaded = false;
-                this.loadHistory();
-            },
+            refreshHistory() { this.historyLoaded = false; this.loadHistory(); },
             resetHistoryFilters() {
                 this.historyClassFilter = '';
                 this.historyTeacherFilter = '';
-                this.historyDateRange = [];
-                const historyDatePicker = document.querySelector("#historyDateFilter")._flatpickr;
-                if (historyDatePicker) {
-                    historyDatePicker.clear();
-                }
-                if (this.historyDataTable) {
-                    this.historyDataTable.draw();
-                }
+                this.$nextTick(() => {
+                    $('#historyTeacherFilter').selectpicker('val', '');
+                });
+                const picker = document.querySelector("#historyDateFilter")._flatpickr;
+                if (picker) { picker.clear(); }
+                if (this.historyDataTable) { this.historyDataTable.draw(); }
             },
             async loadHistory() {
                 this.activeTab = 'history';
-                if (this.historyLoaded) return;
+                if (this.historyLoaded) {
+                    this.$nextTick(() => {
+                        $('#historyTeacherFilter').selectpicker('refresh');
+                    });
+                    return;
+                }
                 $.LoadingOverlay("show");
                 try {
                     const res = await fetch(`${this.webAppUrl}?action=getHistory`);
                     const result = await res.json();
-                    if (result.success) {
-                        if (result.data.length > 0 && result.data[0].Timestamp) {
-                            this.historyData = result.data.sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp));
-                        } else {
-                            this.historyData = result.data.reverse();
-                        }
-                        this.historyLoaded = true;
-                        this.$nextTick(() => this.initHistoryTable());
-                    } else {
-                        throw new Error(result.message || 'Unknown error');
+                    if (result.success) { 
+                        this.historyData = result.data; 
+                        this.historyLoaded = true; 
+                        this.$nextTick(() => {
+                            this.initHistoryTable();
+                            $('#historyTeacherFilter').selectpicker('refresh');
+                        });
                     }
-                } catch (error) {
-                    Swal.fire('เกิดข้อผิดพลาด', `ไม่สามารถโหลดข้อมูลประวัติได้: ${error.message}`, 'error');
-                } finally {
-                    $.LoadingOverlay("hide");
-                }
+                    else { throw new Error(result.message || 'Unknown error'); }
+                } catch (error) { Swal.fire('เกิดข้อผิดพลาด', `ไม่สามารถโหลดข้อมูลประวัติได้: ${error.message}`, 'error'); }
+                finally { $.LoadingOverlay("hide"); }
             },
             initHistoryTable() {
-                if (this.historyDataTable) {
-                    this.historyDataTable.destroy();
-                    $('#historyTable tbody').empty();
-                }
-
+                if (this.historyDataTable) { this.historyDataTable.destroy(); $('#historyTable tbody').empty(); }
                 $.fn.dataTable.ext.search.push((settings, data, dataIndex) => {
                     if (settings.nTable.id !== 'historyTable') return true;
                     const rowData = this.historyData[dataIndex];
                     if (!rowData) return false;
-                    
-                    const classFilter = this.historyClassFilter;
-                    const rowClasses = rowData['ห้อง'] ? rowData['ห้อง'].toString().split(',') : [];
-                    if (classFilter && !rowClasses.some(c => c.trim() === classFilter)) return false;
-
-                    const teacherFilter = this.historyTeacherFilter;
-                    if (teacherFilter && rowData['ครูผู้รับรอง'] && !rowData['ครูผู้รับรอง'].includes(teacherFilter)) {
-                        return false;
-                    }
-
-                    const dateRange = this.historyDateRange;
-                    if(dateRange.length === 2) {
+                    if (this.historyClassFilter && !(rowData['ห้อง'] || '').toString().split(',').some(c => c.trim() === this.historyClassFilter)) return false;
+                    if (this.historyTeacherFilter && !(rowData['ครูผู้รับรอง'] || '').includes(this.historyTeacherFilter)) return false;
+                    if(this.historyDateRange.length === 2) {
                         const thaiMonths = {'ม.ค.':0, 'ก.พ.':1, 'มี.ค.':2, 'เม.ย.':3, 'พ.ค.':4, 'มิ.ย.':5, 'ก.ค.':6, 'ส.ค.':7, 'ก.ย.':8, 'ต.ค.':9, 'พ.ย.':10, 'ธ.ค.':11};
                         const dateParts = rowData['วันที่ทำกิจกรรม'].split(' ');
                         const rowDate = new Date(parseInt(dateParts[2]) - 543, thaiMonths[dateParts[1]], parseInt(dateParts[0]));
-                        if (rowDate < dateRange[0] || rowDate > dateRange[1]) return false;
+                        if (rowDate < this.historyDateRange[0] || rowDate > this.historyDateRange[1]) return false;
                     }
                     return true;
                 });
-                
                 this.historyDataTable = new DataTable('#historyTable', {
-                    responsive: true,
-                    data: this.historyData,
-                    dom: "<'row'<'col-sm-12 col-md-4'l><'col-sm-12 col-md-4'B><'col-sm-12 col-md-4'f>>" +
-                         "<'row'<'col-sm-12'tr>>" +
-                         "<'row'<'col-sm-12 col-md'i><'col-sm-12 col-md-auto'p>>",
-					buttons: [
-                        { extend: 'copy', text: '<i class="fas fa-copy"></i> คัดลอก', className: 'btn-warning' },
-                        { extend: 'excel', text: '<i class="fas fa-file-excel"></i> Excel', className: 'btn-primary' },
-                        { extend: 'print', text: '<i class="fas fa-print"></i> พิมพ์', className: 'btn-info' }
-                    ],	 	 
+                    responsive: true, data: this.historyData,
+                    dom: "<'row'<'col-sm-12 col-md-4'l><'col-sm-12 col-md-4'B><'col-sm-12 col-md-4'f>><'row'<'col-sm-12'tr>><'row'<'col-sm-12 col-md'i><'col-sm-12 col-md-auto'p>>",
+                    buttons: [ { extend: 'copy', text: '<i class="fas fa-copy"></i> คัดลอก', className: 'btn-warning' }, { extend: 'excel', text: '<i class="fas fa-file-excel"></i> Excel', className: 'btn-primary' }, { extend: 'print', text: '<i class="fas fa-print"></i> พิมพ์', className: 'btn-info' } ],
                     columns: [
-						{ data: 'วันที่ทำกิจกรรม', className: 'text-center align-middle' },
-                        { 
-                            data: 'ลิงก์รูปกิจกรรม', orderable: false, className: 'text-center align-middle',
-                            render: (data, type, row) => data ? `<img src="${data}" class="history-activity-image" alt="รูปกิจกรรม" onclick="showActivityImageAlert('${String(row['ชื่อกิจกรรม']).replace(/'/g, "\\'")}', '${data}')" onerror="this.onerror=null;this.src='https://placehold.co/80x80/EFEFEF/AAAAAA?text=N/A';">` : ''
-                        },
-                        
-                        {
-                            data: null, className: 'text-center align-middle',
-                            render: (data, type, row) => `${row['ภาคเรียน']}/${row['ปีการศึกษา']}`
-                        },
+                        { data: 'วันที่ทำกิจกรรม', className: 'text-center align-middle' },
+                        { data: 'ลิงก์รูปกิจกรรม', orderable: false, className: 'text-center align-middle', render: (data, type, row) => data ? `<img src="${data}" class="history-activity-image" alt="รูปกิจกรรม" onclick="showActivityImageAlert('${String(row['ชื่อกิจกรรม']).replace(/'/g, "\\'")}', '${data}')" onerror="this.onerror=null;this.src='https://placehold.co/80x80/EFEFEF/AAAAAA?text=N/A';">` : '' },
+                        { data: null, className: 'text-center align-middle', render: (data, type, row) => `${row['ภาคเรียน']}/${row['ปีการศึกษา']}` },
                         { data: 'ชื่อกิจกรรม', className: 'align-middle' },
                         { data: 'จำนวนชั่วโมง', className: 'text-center align-middle' },
-                        { 
-                            data: 'ชื่อ-สกุลนักเรียน', 
-                            className: 'align-middle text-center',
-                            orderable: false,
-                            render: function(data, type, row) {
-                                const names = String(data).replace(/'/g, "\\'");
-                                return `<button type="button" class="btn btn-sm btn-outline-primary" onclick="showStudentListModal(\`${names}\`)">ดูรายชื่อ</button>`;
-                            }
-                        },
+                        { data: 'ชื่อ-สกุลนักเรียน', className: 'align-middle text-center', orderable: false, render: function(data, type, row) { const names = String(data).replace(/'/g, "\\'"); return `<button type="button" class="btn btn-sm btn-outline-primary" onclick="showStudentListModal(\`${names}\`)">ดูรายชื่อ</button>`; } },
                         { data: 'ครูผู้รับรอง', className: 'align-middle' }
                     ],
-                    language: { 
-                        url: 'https://cdn.datatables.net/plug-ins/2.0.8/i18n/th.json',
-                        search: "ค้นหาด้วยชื่อนักเรียน:"
-                    },
-                    order: [],
+                    language: { url: 'https://cdn.datatables.net/plug-ins/2.0.8/i18n/th.json', search: "ค้นหาด้วยชื่อนักเรียน:" }, order: [],
                 });
             }
         },
-        mounted() {
+        async mounted() {
             $.LoadingOverlaySetup({
                 background: "rgba(0, 0, 0, 0.6)", image: "https://media1.giphy.com/media/mBMdeZHp6bqfkL4vBI/giphy.gif",
                 imageAnimation: "none", size: 150,
             });
-
             this.updateClock();
             setInterval(this.updateClock, 1000);
             document.getElementById('current-year').textContent = (new Date().getFullYear() + 543);
-            
-                 // Initialize Flatpickr
-                 flatpickr("#activityDatePicker", {
-                    locale: "th",
-                    altInput: true,
-                    dateFormat: "Y-m-d", // for backend
-                    defaultDate: this.formData.activityDate,
-                    onReady: (selectedDates, dateStr, instance) => {
-                        if (instance.altInput) {
-                            const date = selectedDates.length > 0 ? selectedDates[0] : new Date();
-                            const thaiYear = date.getFullYear() + 543;
-                            instance.altInput.value = `${instance.formatDate(date, "j M")} ${thaiYear}`;
-                        }
-                    },
-                    onChange: (selectedDates, dateStr, instance) => {
-                        this.formData.activityDate = dateStr;
-                        if (instance.altInput && selectedDates.length > 0) {
-                            const date = selectedDates[0];
-                            const thaiYear = date.getFullYear() + 543;
-                            instance.altInput.value = `${instance.formatDate(date, "j M")} ${thaiYear}`;
-                        }
-                    },
-                });
-
-
+            flatpickr("#activityDatePicker", {
+                locale: "th", altInput: true, dateFormat: "Y-m-d", defaultDate: this.formData.activityDate,
+                onReady: (selectedDates, dateStr, instance) => {
+                    if (instance.altInput) {
+                        const date = selectedDates.length > 0 ? selectedDates[0] : new Date();
+                        instance.altInput.value = `${instance.formatDate(date, "j M")} ${date.getFullYear() + 543}`;
+                    }
+                },
+                onChange: (selectedDates, dateStr, instance) => {
+                    this.formData.activityDate = dateStr;
+                    if (instance.altInput && selectedDates.length > 0) {
+                        const date = selectedDates[0];
+                        instance.altInput.value = `${instance.formatDate(date, "j M")} ${date.getFullYear() + 543}`;
+                    }
+                },
+            });
             flatpickr("#historyDateFilter", {
-                mode: "range",
-                locale: "th",
-                dateFormat: "Y-m-d",
+                mode: "range", locale: "th", dateFormat: "Y-m-d",
                 onClose: (selectedDates) => {
                     if (selectedDates.length === 2) {
                         selectedDates[0].setHours(0, 0, 0, 0);
                         selectedDates[1].setHours(23, 59, 59, 999);
                         this.historyDateRange = selectedDates;
-                    } else if (selectedDates.length === 0) {
-                        this.historyDateRange = [];
-                    }
+                    } else if (selectedDates.length === 0) { this.historyDateRange = []; }
                     if (this.historyDataTable) this.historyDataTable.draw();
                 }
             });
-
             this.$nextTick(() => { 
-                $('.selectpicker').selectpicker(); 
+                $('.selectpicker').selectpicker();
             });
-            this.fetchActivities();
+            
+            // Add a listener to close the dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                const container = this.$refs.activityDropdownContainer;
+                if (container && !container.contains(e.target)) {
+                    this.isActivityDropdownVisible = false;
+                }
+            });
+
+            $.LoadingOverlay("show");
+            try {
+                await Promise.all([ this.fetchClasses(), this.fetchAllTeachers(), this.fetchActivities() ]);
+            } catch (error) { console.error("เกิดข้อผิดพลาดระหว่างการโหลดข้อมูลเริ่มต้น:", error);
+            } finally { $.LoadingOverlay("hide"); }
         },
         beforeUnmount() {
            $.fn.dataTable.ext.search.pop();
