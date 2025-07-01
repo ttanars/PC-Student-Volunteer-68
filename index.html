@@ -738,7 +738,7 @@
                     let allStudents = [];
                     results.forEach(result => { if (result.success) allStudents = [...allStudents, ...result.data]; });
                     const uniqueStudents = Array.from(new Map(allStudents.map(item => [item['id'], item])).values());
-                    this.allFetchedStudents = uniqueStudents.map(s => ({ ...s, selected: true }));
+                    this.allFetchedStudents = uniqueStudents.map(s => ({ ...s, selected: false }));
                 } catch (error) { Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลนักเรียนได้', 'error'); }
                 finally { $.LoadingOverlay("hide"); }
             },
