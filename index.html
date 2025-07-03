@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PC|Student Volunteer'68 v1</title> <link rel="shortcut icon" type="image/png" href="https://img2.pic.in.th/pic/Pakchong_School-removebg-preview.png">
 
-    <!-- Standard Libraries -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
@@ -120,6 +119,28 @@
             background-color: #e9ecef;
             border-radius: 0.75rem;
         }
+        /* START: Custom Dropdown Checkbox Styles */
+        .dropdown-checkbox-container {
+            position: relative;
+        }
+        .dropdown-checkbox-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            max-height: 250px;
+            overflow-y: auto;
+            background-color: #fff;
+            border: 1px solid #ced4da;
+            border-radius: 0 0 0.5rem 0.5rem;
+            padding: 1rem;
+            z-index: 1050;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .dropdown-checkbox-menu .form-check {
+            margin-bottom: 0.5rem;
+        }
+        /* END: Custom Dropdown Checkbox Styles */
         /* START: Custom Datalist Styles */
         .autocomplete-dropdown {
             position: absolute;
@@ -213,14 +234,27 @@
                         </div>
 
                         <div class="mb-4">
-                            <label for="classSelector" class="form-label">เลือกห้องเรียน</label>
-                            <div class="input-group">
-                                <select id="classSelector" class="form-control selectpicker" multiple data-live-search="true" title="กรุณาเลือกห้องเรียน..." @change="fetchStudents" v-model="selectedClasses">
-                                   <option v-for="c in classes" :value="c">{{ c }}</option>
-                                </select>
-                                <button class="btn btn-outline-secondary" type="button" @click="resetClassSelection" title="รีเซตการเลือกห้อง">
-                                    <i class="fas fa-undo"></i>
+                            <label class="form-label">เลือกห้องเรียน</label>
+                            <div class="dropdown-checkbox-container" ref="classDropdownContainer">
+                                <button type="button" class="form-select text-start" @click="isClassDropdownOpen = !isClassDropdownOpen">
+                                    {{ classDropdownText }}
                                 </button>
+                                <div v-if="isClassDropdownOpen" class="dropdown-checkbox-menu">
+								    <button class="btn btn-sm btn-outline-secondary w-100" type="button" @click="resetClassSelection" title="รีเซตการเลือกห้อง" v-if="selectedClasses.length > 0">
+                                        <i class="fas fa-undo me-1"></i> รีเซต
+                                    </button>
+                                    <hr class="my-2" v-if="selectedClasses.length > 0">								
+                                    <div class="row">
+                                        <div v-for="c in classes" :key="c" class="col-12 col-sm-6 col-md-4">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" :value="c" :id="'class-' + c" v-model="selectedClasses" @change="fetchStudents">
+                                                <label class="form-check-label" :for="'class-' + c">
+                                                    {{ c }}
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -621,7 +655,8 @@
                 activeTab: 'form',
                 classes: [],
                 activityList: [],
-                isActivityDropdownVisible: false, // For custom dropdown
+                isActivityDropdownVisible: false,
+                isClassDropdownOpen: false, // For custom dropdown checkbox
                 selectedClasses: [],
                 allFetchedStudents: [],
                 hideUnselected: false,
@@ -669,17 +704,26 @@
                 });
                 return Array.from(classSet).sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
             },
-		uniqueHistoryTeachers() {
-			const teacherSet = new Set(this.historyData.map(row => row['ครูผู้รับรอง']).filter(Boolean));
-			return [...Array.from(teacherSet).sort()];
-		},
+		    uniqueHistoryTeachers() {
+			    const teacherSet = new Set(this.historyData.map(row => row['ครูผู้รับรอง']).filter(Boolean));
+			    return [...Array.from(teacherSet).sort()];
+		    },
             filteredActivities() {
                 if (!this.formData.activityName) {
                     return this.activityList;
                 }
                 const query = this.formData.activityName.toLowerCase();
                 return this.activityList.filter(act => act.toLowerCase().includes(query));
-            }
+            },
+            classDropdownText() {
+                if (this.selectedClasses.length === 0) {
+                    return 'กรุณาเลือกห้องเรียน...';
+                } else if (this.selectedClasses.length === 1) {
+                    return this.selectedClasses[0];
+                } else {
+                    return `เลือกแล้ว ${this.selectedClasses.length} ห้อง`;
+                }
+            },
         },
         watch: {
             teacherFound(newVal) { if (newVal) { this.$nextTick(() => this.initSignaturePad()); } },
@@ -745,7 +789,7 @@
             resetClassSelection() {
                 this.selectedClasses = [];
                 this.allFetchedStudents = [];
-                if ($('.selectpicker').length) { $('.selectpicker').selectpicker('val', []); }
+                this.isClassDropdownOpen = false; // Close dropdown on reset
             },
             async fetchActivities() {
                 try {
@@ -1062,11 +1106,15 @@
                 $('.selectpicker').selectpicker();
             });
             
-            // Add a listener to close the dropdown when clicking outside
+            // Add listeners to close dropdowns when clicking outside
             document.addEventListener('click', (e) => {
-                const container = this.$refs.activityDropdownContainer;
-                if (container && !container.contains(e.target)) {
+                const activityContainer = this.$refs.activityDropdownContainer;
+                if (activityContainer && !activityContainer.contains(e.target)) {
                     this.isActivityDropdownVisible = false;
+                }
+                const classContainer = this.$refs.classDropdownContainer;
+                if (classContainer && !classContainer.contains(e.target)) {
+                    this.isClassDropdownOpen = false;
                 }
             });
 
